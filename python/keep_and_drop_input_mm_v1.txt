@@ -1,0 +1,17 @@
+# this is a comment
+# data & MC
+drop Photon*
+drop Tau*
+drop SV*
+drop L1*
+drop HLT*
+keep HLT_IsoMu24*
+# MC only 
+drop HTXS*
+drop Generator*
+drop LHE*
+drop GenJetAK8*
+drop SubGenJetAK8*
+drop GenDressedLepton*
+drop GenIsolatedPhoton*
+drop GenVisTau*
