@@ -1,5 +1,7 @@
 #To submit skimming jobs execute:
+```
 python submitNanoAODSkims.py
+```
 
 # It is assumed that
 # 1. NanoAOD-tools and NanoAna-mmAna are installed together on top of CMSSW
