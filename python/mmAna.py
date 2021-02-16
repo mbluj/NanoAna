@@ -252,12 +252,12 @@ class MMAnalysis(Module):
             if jet.btagDeepB>0.4184: nBJetsM+=1                    
 
         # di-jet (VBF) variables
-        deta_jj = -1
+        deta_jj = 0
         diJ = ROOT.TLorentzVector()
         if jet1_idx>-1 and jet2_idx>-1:
             deta_jj = jets[jet1_idx].eta - jets[jet2_idx].eta
             diJ = jets[jet1_idx].p4() + jets[jet2_idx].p4()
-        #VBF deta_jj>2.5 and diJ.M()>400
+        #VBF abs(deta_jj)>2.5 and diJ.M()>400
 
         # Corrected muons p4
         mu1CorrP4 = ROOT.TLorentzVector()
