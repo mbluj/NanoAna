@@ -23,7 +23,7 @@ class MMAnalysis(Module):
         self.isDY = False
         if histFile!=None and histFile.GetName().find('DY')>-1:
             self.isDY = True
-        
+
         self.h_count = ROOT.TH1F('hcount', 'efficiency', 10, 0, 10)
         cut_names = ['init', 'mu-trig', 'met-flags', 'di-mu', 'trig-match', 'lept-veto', 'b-veto']
         ibin = 1
@@ -67,12 +67,18 @@ class MMAnalysis(Module):
         self.h_m_mm_vbf = ROOT.TH1F('m_mm_vbf', 'VBF: m_{jj}> 400 GeV, |#eta_{jj}| > 2.5;m_{#mu#mu} w/ FSR (GeV); Events', 100, 60, 160)
         self.addObject(self.h_m_mm_vbf)
         # pt(mm) for reweight
-        self.h_pt_mm_0j = ROOT.TH1F('pt_mm_0j', '70 < m_{#mu#mu}<110 GeV, 0-jet;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 200, 0, 200)
+        self.h_pt_mm_0j = ROOT.TH1F('pt_mm_0j', '70 < m_{#mu#mu}<110 GeV, 0-jet;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 50, 0, 200)
         self.addObject(self.h_pt_mm_0j)
-        self.h_pt_mm_1j = ROOT.TH1F('pt_mm_1j', '70 < m_{#mu#mu}<110 GeV, 1-jet;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 200, 0, 200)
+        self.h_pt_mm_0jw = ROOT.TH1F('pt_mm_0jw', '70 < m_{#mu#mu}<110 GeV, 0-jet;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 50, 0, 200)
+        self.addObject(self.h_pt_mm_0jw)
+        self.h_pt_mm_1j = ROOT.TH1F('pt_mm_1j', '70 < m_{#mu#mu}<110 GeV, 1-jet;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 50, 0, 200)
         self.addObject(self.h_pt_mm_1j)
-        self.h_pt_mm_2j = ROOT.TH1F('pt_mm_2j', '70 < m_{#mu#mu}<110 GeV, #ge2-jet;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 200, 0, 200)
+        self.h_pt_mm_1jw = ROOT.TH1F('pt_mm_1jw', '70 < m_{#mu#mu}<110 GeV, 1-jet;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 50, 0, 200)
+        self.addObject(self.h_pt_mm_1jw)
+        self.h_pt_mm_2j = ROOT.TH1F('pt_mm_2j', '70 < m_{#mu#mu}<110 GeV, #geq2-jet;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 50, 0, 200)
         self.addObject(self.h_pt_mm_2j)
+        self.h_pt_mm_2jw = ROOT.TH1F('pt_mm_2jw', '70 < m_{#mu#mu}<110 GeV, #geq2-jet;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 50, 0, 200)
+        self.addObject(self.h_pt_mm_2jw)
         #additional leptons
         self.h_nlep = ROOT.TH1F('nlep', ';no. of additional lepton; Events', 3, 0, 3)
         self.addObject(self.h_nlep)
@@ -284,20 +290,44 @@ class MMAnalysis(Module):
                 fsrPhotonP4.SetPtEtaPhiM(fsrPhotons[fsrIdx].pt,fsrPhotons[fsrIdx].eta,fsrPhotons[fsrIdx].phi,0)
                 mu2WFsrP4 += fsrPhotonP4
 
-        #DY pt(mm) weight
-        ptWeight=1.
-        if self.isDY:
-            #FIXME: compute weight in a function of diMuWFsr.Pt()
-            if jet1_idx == -1:
-                ptWeight=1.
-            elif jet2_idx== -1:
-                ptWeight=1.
-            else:
-                ptWeight=1.
-
         diMu = muons[mu1_idx].p4() + muons[mu2_idx].p4()
         diMuCorr = mu1CorrP4 + mu2CorrP4
         diMuWFsr = mu1WFsrP4 + mu2WFsrP4
+
+        #DY pt(mm) weight to account for missing higher order calc and resummation
+        #Delivered by comparing DY MC and data around Z-peak in n-jet bins and
+        # ad-hoc parameterised with polynomials of 7/8-th order
+        ptWeight = 1.
+        if self.isDY:
+            diMu_pt = min(diMuWFsr.Pt(),199.5)
+            if jet1_idx == -1: #0-jet
+                ptWeight = (0.671731
+                            +0.062859 * diMu_pt
+                            -0.0035237 * pow(diMu_pt,2)
+                            +0.000106116 * pow(diMu_pt,3)
+                            -1.51184e-06 * pow(diMu_pt,4)
+                            +1.07451e-08 * pow(diMu_pt,5)
+                            -3.7115e-11 * pow(diMu_pt,6)
+                            +4.96315e-14 * pow(diMu_pt,7))
+            elif jet2_idx == -1: #1-jet
+                ptWeight = (0.60034
+                            +0.0719654 * diMu_pt
+                            -0.00359921 * pow(diMu_pt,2)
+                            +8.13379e-05 * pow(diMu_pt,3)
+                            -9.57577e-07 * pow(diMu_pt,4)
+                            +6.09171e-09 * pow(diMu_pt,5)
+                            -1.98696e-11 * pow(diMu_pt,6)
+                            +2.60659e-14 * pow(diMu_pt,7))
+            else: #2-jet
+                ptWeight = (0.555797
+                            +0.0712998 * diMu_pt
+                            -0.00360608 * pow(diMu_pt,2)
+                            +9.1347e-05 * pow(diMu_pt,3)
+                            -1.31615e-06 * pow(diMu_pt,4)
+                            +1.12552e-08 * pow(diMu_pt,5)
+                            -5.6584e-11 * pow(diMu_pt,6)
+                            +1.54439e-13 * pow(diMu_pt,7)
+                            -1.76493e-16 * pow(diMu_pt,8))
 
         # fill histograms
         self.h_njet.Fill(nJets,puWeight*ptWeight)
@@ -332,10 +362,13 @@ class MMAnalysis(Module):
         if diMuWFsr.M() > 70 and diMuWFsr.M() < 110:
             if jet1_idx == -1:
                 self.h_pt_mm_0j.Fill(diMuWFsr.Pt(),puWeight)
+                self.h_pt_mm_0jw.Fill(diMuWFsr.Pt(),puWeight*ptWeight)
             elif jet2_idx == -1:
                 self.h_pt_mm_1j.Fill(diMuWFsr.Pt(),puWeight)
+                self.h_pt_mm_1jw.Fill(diMuWFsr.Pt(),puWeight*ptWeight)
             else:
                 self.h_pt_mm_2j.Fill(diMuWFsr.Pt(),puWeight)
+                self.h_pt_mm_2jw.Fill(diMuWFsr.Pt(),puWeight*ptWeight)
         #jet variables
         if jet1_idx>-1:
             self.h_ptj1.Fill(jets[jet1_idx].pt,puWeight*ptWeight)
@@ -362,6 +395,7 @@ samples = {
     'ggH125_tst': [dataDir+'/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/nanoAOD_Skim_1.root',0.01057], #sigma*Br=0.01057pb
     'ggH125': [dataDir+'/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8*/nanoAOD_Skim_*.root',0.01057], #sigma*Br=0.01057pb
     'vbfH125': [dataDir+'/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/nanoAOD_Skim_*.root',0.0008228], #sigma*Br=0.0008228pb
+    'DYToLL_tst': [dataDir+'/DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8/nanoAOD_Skim_10.root',6225.4], #sigma=6225.4pb
     'DYToLL': [dataDir+'/DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8/nanoAOD_Skim_*.root',6225.4], #sigma=6225.4pb
     'ewk2l2j': [dataDir+'/EWK_LLJJ_MLL-50_MJJ-120_TuneCH3_PSweights_13TeV-madgraph-herwig7_corrected/nanoAOD_Skim_*.root',1.029], #sigma=1.029pb
     'tt2l2nu':[dataDir+'/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/nanoAOD_Skim_*.root',86.61], #sigma=86.61pb
@@ -379,12 +413,13 @@ outDir="histoFiles"
 for dataset in [
     ##'ggH125_tst',
     ##'tt2l2nu_tst',
+    'DYToLL_tst',
     ##'Run2018A_tst',
     #'ggH125',
     #'vbfH125',
     #'tt2l2nu',
-    'ewk2l2j',
-    #'DYToLL',
+    #'ewk2l2j',
+    'DYToLL',
     #'Run2018All',
 ]:
     print 'Processing', dataset

@@ -23,14 +23,14 @@ def configureLegend(leg, ncolumn):
     leg.SetTextSize(0.035)
     leg.SetTextFont(42)
 
-histoDir = 'histoFiles_v2/'
+histoDir = 'histoFiles/'
 lumi=14.03+7.06+6.89+31.83
 print 'lumi(2018A+B+C+D) =',lumi,'fb-1'
 hscaling=100.
 samples = {
     'DYToLL': ['Z/#gamma*#rightarrow#mu#mu',6225.4*1000,100194597],
     'tt2l2nu': ['t#bar{t}',86.61*1000,64310000],
-    #'ewk2l2j': ['Zjj-EW',1.029*1000,2959970],
+    'ewk2l2j': ['Zjj-EW',1.029*1000,2959970],
     'ggH125': ['gg#rightarrowH#rightarrow#mu#mu',0.01057*1000,1920000],
     'vbfH125': ['q#bar{q}#rightarrowq#bar{q}H#rightarrow#mu#mu',0.0008228*1000,1000000],
     'Run2018All': ['Data',-1,-1]
@@ -41,15 +41,15 @@ h_names = {
     'm_mm': [],
     'm_mm_fsr': [],
     'm_mm_corr': [],
-    #'m_mm_bst': [],
-    #'m_mm_vbf': [],
+    'm_mm_bst': [],
+    'm_mm_vbf': [],
     'pt_mm_fsr': [],
     'pt_mm': [],
     #'hcount': [],
     'npv': [],
     'npv_raw': [],
     'pt1_corr': [],
-    'pt1_corr': [],
+    'pt2_corr': [],
     ##'nlep': [],
     'ptj1': [],
     'ptj2': [],
@@ -59,7 +59,7 @@ h_names = {
     'nbjet': [],
 }
 
-for sample in ['tt2l2nu','DYToLL','ggH125','vbfH125','Run2018All']:
+for sample in ['tt2l2nu','DYToLL','ggH125','vbfH125','ewk2l2j','Run2018All']:
     #print sample, samples[sample][0], samples[sample][1], samples[sample][2]
     f_in=ROOT.TFile.Open(histoDir+'histOut_'+sample+'.root')
     #f_in.cd('mmPlots')
@@ -88,6 +88,10 @@ for h_name in h_names:
     h_names[h_name][1].SetFillColor(ROOT.kOrange-3)
     h_names[h_name][1].SetLineColor(ROOT.kBlack)
     hSum.Add(h_names[h_name][1])
+    #Zjj-EW
+    h_names[h_name][4].SetFillColor(ROOT.kMagenta+1)
+    h_names[h_name][4].SetLineColor(ROOT.kBlack)
+    hSum.Add(h_names[h_name][4])
     #tt
     h_names[h_name][0].SetFillColor(ROOT.kGreen+1)
     h_names[h_name][0].SetLineColor(ROOT.kBlack)
@@ -125,6 +129,7 @@ for h_name in h_names:
 
     leg.AddEntry(h_names[h_name][len(h_names[h_name])-1],"Data","LPE") #add marker to data?
     leg.AddEntry(h_names[h_name][1],'Z/#gamma*#rightarrow#mu#mu',"F1")
+    leg.AddEntry(h_names[h_name][4],'#mu#mujj-EW',"F1") #FIXME: always?
     leg.AddEntry(h_names[h_name][0],'t#bar{t}',"F1")
     if hscaling>1 and h_name.find('m_mm')>-1:
         #hscaling_str = ' #times'+str(hscaling)
