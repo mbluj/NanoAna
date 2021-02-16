@@ -1,0 +1,35 @@
+# this is a comment
+keep *
+#drop *
+#keep Muon*
+#keep Electron*
+#keep Jet*
+# Drop additional METs
+drop CaloMET*
+drop ChsMET*
+drop RawMET*
+drop RawPuppiMET*
+drop TkMET*
+drop CorrT1METJet*
+# Drop collctions not used in di-mu analysis
+drop FatJet*
+drop IsoTrack*
+#drop SoftActivityJet* #not remove in v2
+drop SubJet*
+#following added in v2
+#data & MC
+drop Photon*
+#drop Tau*
+drop SV*
+drop L1*
+drop HLT*
+keep HLT_IsoMu*
+#MC only 
+drop HTXS*
+drop Generator*
+drop LHE*
+drop GenJetAK8*
+drop SubGenJetAK8*
+drop GenDressedLepton*
+drop GenIsolatedPhoton*
+#drop GenVisTau*
