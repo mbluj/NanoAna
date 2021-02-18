@@ -31,6 +31,12 @@ samples = {
     'DYToLL': ['Z/#gamma*#rightarrow#mu#mu',6225.4*1000,100194597],
     'tt2l2nu': ['t#bar{t}',86.61*1000,64310000],
     'ewk2l2j': ['Zjj-EW',1.029*1000,2959970],
+    'atop_tch': ['#bar{t}, t-channel',80.95*1000,3955024],
+    'top_tch': ['t, t-channel',136.02*1000,5903676],
+    't_sch': ['t, s-channel',3.40*1000,19965000],
+    'ttsemil': ['t#bar{t}',358.57*1000,100790000],
+    'tWatop_ext1': ['#bar{t}W',39.5*1000,7527000],
+    'tWtop_ext1': ['tW',39.5*1000,9598000],
     'ggH125': ['gg#rightarrowH#rightarrow#mu#mu',0.01057*1000,1920000],
     'vbfH125': ['q#bar{q}#rightarrowq#bar{q}H#rightarrow#mu#mu',0.0008228*1000,1000000],
     'Run2018All': ['Data',-1,-1]
@@ -59,7 +65,7 @@ h_names = {
     'nbjet': [],
 }
 
-for sample in ['tt2l2nu','DYToLL','ggH125','vbfH125','ewk2l2j','Run2018All']:
+for sample in ['tt2l2nu','DYToLL','ggH125','vbfH125','ewk2l2j','ttsemil','atop_tch','top_tch','tWatop_ext1','tWtop_ext1','t_sch','Run2018All']:
     #print sample, samples[sample][0], samples[sample][1], samples[sample][2]
     f_in=ROOT.TFile.Open(histoDir+'histOut_'+sample+'.root')
     #f_in.cd('mmPlots')
@@ -92,12 +98,26 @@ for h_name in h_names:
     h_names[h_name][4].SetFillColor(ROOT.kMagenta+1)
     h_names[h_name][4].SetLineColor(ROOT.kBlack)
     hSum.Add(h_names[h_name][4])
-    #tt
-    h_names[h_name][0].SetFillColor(ROOT.kGreen+1)
-    h_names[h_name][0].SetLineColor(ROOT.kBlack)
-    hSum.Add(h_names[h_name][0])
+    #top
+    h_top = deepcopy(h_names[h_name][0].Clone(h_name+'_top'))
+    h_top.Reset()
+    #tt fully-leptonic
+    h_top.Add(h_names[h_name][0])
+    #tt semi-leptonic
+    h_top.Add(h_names[h_name][5])
+    #single-t t-channel
+    h_top.Add(h_names[h_name][6])
+    h_top.Add(h_names[h_name][7])
+    #tW
+    h_top.Add(h_names[h_name][8])
+    h_top.Add(h_names[h_name][9])
+    #single-t s-channel
+    h_top.Add(h_names[h_name][10])
+    h_top.SetFillColor(ROOT.kGreen+1)
+    h_top.SetLineColor(ROOT.kBlack)
+    hSum.Add(h_top)
     #H125
-    h_H125 = h_names[h_name][2].Clone(h_name+'_H125')
+    h_H125 = deepcopy(h_names[h_name][2].Clone(h_name+'_H125'))
     h_H125.Reset()
     #ggH
     h_names[h_name][2].SetLineColor(ROOT.kRed+1)
@@ -130,7 +150,7 @@ for h_name in h_names:
     leg.AddEntry(h_names[h_name][len(h_names[h_name])-1],"Data","LPE") #add marker to data?
     leg.AddEntry(h_names[h_name][1],'Z/#gamma*#rightarrow#mu#mu',"F1")
     leg.AddEntry(h_names[h_name][4],'#mu#mujj-EW',"F1") #FIXME: always?
-    leg.AddEntry(h_names[h_name][0],'t#bar{t}',"F1")
+    leg.AddEntry(h_top,'top',"F1")
     if hscaling>1 and h_name.find('m_mm')>-1:
         #hscaling_str = ' #times'+str(hscaling)
         hscaling_str = ' #times'+str(int(round(hscaling)))
