@@ -27,6 +27,7 @@ keep HLT_IsoMu*
 #MC only 
 drop HTXS*
 drop Generator*
+keep Generator_weight
 drop LHE*
 drop GenJetAK8*
 drop SubGenJetAK8*
