@@ -14,18 +14,22 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 
 class MMAnalysis(Module):
-    def __init__(self):
+    def __init__(self, xsec=-1.):
         self.writeHistFile = True
+        self.xsec = xsec #in pb
 
     def beginJob(self, histFile=None, histDirName=None):
         Module.beginJob(self, histFile, histDirName)
 
-        self.isDY = False
+        self.genEventSumw = 0
+        self.isDY = 0
         if histFile!=None and histFile.GetName().find('DY')>-1:
-            self.isDY = True
+            self.isDY = 1
+            if histFile.GetName().find('NLO')>-1:
+                self.isDY = 2
 
         self.h_count = ROOT.TH1F('hcount', 'efficiency', 10, 0, 10)
-        cut_names = ['init', 'mu-trig', 'met-flags', 'di-mu', 'trig-match', 'lept-veto', 'b-veto']
+        cut_names = ['init', 'mu-trig', 'met-flags', 'good-PV', 'di-mu', 'trig-match', 'lept-veto', 'b-veto']
         ibin = 1
         for label in cut_names:
             self.h_count.GetXaxis().SetBinLabel(ibin,label)
@@ -52,6 +56,8 @@ class MMAnalysis(Module):
         self.addObject(self.h_pt_mm)
         self.h_m_mm = ROOT.TH1F('m_mm', ';m_{#mu#mu} (GeV); Events', 100, 60, 160)
         self.addObject(self.h_m_mm)
+        self.h_pt_mm_wb = ROOT.TH1F('pt_mm_wb', ';p_{T}^{#mu#mu} w/o b-veto (GeV); Events', 200, 0, 200)
+        self.addObject(self.h_pt_mm_wb)
         self.h_m_mm_wb = ROOT.TH1F('m_mm_wb', ';m_{#mu#mu} w/o b-veto (GeV); Events', 100, 60, 160)
         self.addObject(self.h_m_mm_wb)
         self.h_pt_mm_corr = ROOT.TH1F('pt_mm_corr', ';p_{T}^{#mu#mu} w/ corrections (GeV); Events', 200, 0, 200)
@@ -67,6 +73,10 @@ class MMAnalysis(Module):
         self.h_m_mm_vbf = ROOT.TH1F('m_mm_vbf', 'VBF: m_{jj}> 400 GeV, |#eta_{jj}| > 2.5;m_{#mu#mu} w/ FSR (GeV); Events', 100, 60, 160)
         self.addObject(self.h_m_mm_vbf)
         # pt(mm) for reweight
+        self.h_pt_mm_z = ROOT.TH1F('pt_mm_z', '70 < m_{#mu#mu}<110 GeV;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 50, 0, 200)
+        self.addObject(self.h_pt_mm_z)
+        self.h_pt_mm_zw = ROOT.TH1F('pt_mm_zw', '70 < m_{#mu#mu}<110 GeV;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 50, 0, 200)
+        self.addObject(self.h_pt_mm_zw)
         self.h_pt_mm_0j = ROOT.TH1F('pt_mm_0j', '70 < m_{#mu#mu}<110 GeV, 0-jet;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 50, 0, 200)
         self.addObject(self.h_pt_mm_0j)
         self.h_pt_mm_0jw = ROOT.TH1F('pt_mm_0jw', '70 < m_{#mu#mu}<110 GeV, 0-jet;p_{T}^{#mu#mu} w/ FSR (GeV); Events', 50, 0, 200)
@@ -93,13 +103,24 @@ class MMAnalysis(Module):
         self.addObject(self.h_deta_jj)
         self.h_njet = ROOT.TH1F('njet', ';no. of jets; Events', 10, 0, 10)
         self.addObject(self.h_njet)
+        self.h_njet_z = ROOT.TH1F('njet_z', '70 < m_{#mu#mu}<110 GeV;no. of jets; Events', 10, 0, 10)
+        self.addObject(self.h_njet_z)
+        self.h_njet_zw = ROOT.TH1F('njet_zw', '70 < m_{#mu#mu}<110 GeV;no. of jets; Events', 10, 0, 10)
+        self.addObject(self.h_njet_zw)
         self.h_nbjet = ROOT.TH1F('nbjet', ';no. of loosely b-tagged jets (Loose WP) ; Events', 5, 0, 5)
         self.addObject(self.h_nbjet)
         self.h_nbjet2 = ROOT.TH1F('nbjet2', ';no. of b-tagged jets (Medium WP); Events', 5, 0, 5)
         self.addObject(self.h_nbjet2)
 
     def endJob(self):
-        #FIXME: normalise histograms at the end
+        #Normalise histograms at the end to xsec/sumw
+        if self.doNorm:
+            for obj in self.objs:
+                if isinstance(obj, ROOT.TH1):
+                    scale = 1./self.genEventSumw
+                    if self.xsec > 0:
+                        scale *= self.xsec
+                    obj.Scale(scale)
         nbins = self.h_count.GetNbinsX()
         n_init = self.h_count.GetBinContent(1)
         for ibin in range(1,nbins+2):
@@ -111,6 +132,13 @@ class MMAnalysis(Module):
         if not self.hasMuCorr:
             print "[MMAnalysis]: Input tree does not contain muon-pt corrections"
         self.hasPUWeight = bool(inputTree.GetBranch("puWeight"))
+
+        runTree = inputFile.Get("Runs")
+        self.doNorm = bool(runTree.GetBranch("genEventSumw")) and bool(inputTree.GetBranch("genWeight"))
+        if self.doNorm:
+            for entry in range(runTree.GetEntries()):
+                runTree.GetEntry(entry)
+                self.genEventSumw += runTree.genEventSumw
 
     def analyze(self, event):
         # some consts
@@ -124,13 +152,18 @@ class MMAnalysis(Module):
         jets = Collection(event, "Jet")
         trigObjs = Collection(event, "TrigObj")
         
+        # gen-weight
+        genWeight = 1.
+        if self.doNorm:
+            genWeight = event.genWeight
+
         icut = 1
-        self.h_count.AddBinContent(icut)
+        self.h_count.AddBinContent(icut,genWeight)
 
         # check trigger bit(s)
         if not event.HLT_IsoMu24: return False #MB: can be used as preselection for some speedup
         icut += 1
-        self.h_count.AddBinContent(icut)
+        self.h_count.AddBinContent(icut,genWeight)
         
         # MET flags, needed???
         if not (event.Flag_goodVertices and
@@ -140,7 +173,12 @@ class MMAnalysis(Module):
                 event.Flag_BadPFMuonFilter and
                 event.Flag_ecalBadCalibFilterV2): return False #MB comment as for trigger
         icut += 1
-        self.h_count.AddBinContent(icut)
+        self.h_count.AddBinContent(icut,genWeight)
+
+        # require at least one good vertex
+        if not (event.PV_npvsGood > 0): return False
+        icut += 1
+        self.h_count.AddBinContent(icut,genWeight)
 
         # select events with at least 2 muons
         if not len(muons) >= 2: return False
@@ -166,8 +204,46 @@ class MMAnalysis(Module):
                 if (mu2.charge*mu1.charge)>0: continue
                 mu2_idx=i_mu2
         if mu1_idx<0 or mu2_idx<0: return False
+
+        # Corrected muons p4
+        mu1CorrP4 = ROOT.TLorentzVector()
+        mu2CorrP4 = ROOT.TLorentzVector()
+        #check if corrections are stored
+        if self.hasMuCorr:
+            mu1CorrP4.SetPtEtaPhiM(muons[mu1_idx].corrected_pt,muons[mu1_idx].eta,muons[mu1_idx].phi,muons[mu1_idx].mass)
+            mu2CorrP4.SetPtEtaPhiM(muons[mu2_idx].corrected_pt,muons[mu2_idx].eta,muons[mu2_idx].phi,muons[mu2_idx].mass)
+        else: #use uncorrected pt
+            mu1CorrP4.SetPtEtaPhiM(muons[mu1_idx].pt,muons[mu1_idx].eta,muons[mu1_idx].phi,muons[mu1_idx].mass)
+            mu2CorrP4.SetPtEtaPhiM(muons[mu2_idx].pt,muons[mu2_idx].eta,muons[mu2_idx].phi,muons[mu2_idx].mass)
+
+        # FSR recovery
+        mu1WFsrP4 = deepcopy(mu1CorrP4)
+        mu2WFsrP4 = deepcopy(mu2CorrP4)
+        if muons[mu1_idx].fsrPhotonIdx>-1:
+            fsrIdx=muons[mu1_idx].fsrPhotonIdx
+            if (fsrPhotons[fsrIdx].dROverEt2<0.012 and
+                fsrPhotons[fsrIdx].relIso03<1.8 and
+                fsrPhotons[fsrIdx].pt/mu1CorrP4.Pt()<0.4):
+                fsrPhotonP4 = ROOT.TLorentzVector()
+                fsrPhotonP4.SetPtEtaPhiM(fsrPhotons[fsrIdx].pt,fsrPhotons[fsrIdx].eta,fsrPhotons[fsrIdx].phi,0)
+                mu1WFsrP4 += fsrPhotonP4
+        if muons[mu2_idx].fsrPhotonIdx>-1:
+            fsrIdx=muons[mu2_idx].fsrPhotonIdx
+            if (fsrPhotons[fsrIdx].dROverEt2<0.012 and
+                fsrPhotons[fsrIdx].relIso03<1.8 and
+                fsrPhotons[fsrIdx].pt/mu2CorrP4.Pt()<0.4):
+                fsrPhotonP4 = ROOT.TLorentzVector()
+                fsrPhotonP4.SetPtEtaPhiM(fsrPhotons[fsrIdx].pt,fsrPhotons[fsrIdx].eta,fsrPhotons[fsrIdx].phi,0)
+                mu2WFsrP4 += fsrPhotonP4
+
+        diMu = muons[mu1_idx].p4() + muons[mu2_idx].p4()
+        diMuCorr = mu1CorrP4 + mu2CorrP4
+        diMuWFsr = mu1WFsrP4 + mu2WFsrP4
+
+
+        if diMuWFsr.M()<=50: return False #needed as DY MC has this cut (use scale and fsr corrected muons)
         icut += 1
-        self.h_count.AddBinContent(icut)
+        self.h_count.AddBinContent(icut,genWeight)
 
         #check trigger matching
         isTrigMatchedDiMu = False
@@ -190,14 +266,14 @@ class MMAnalysis(Module):
                 break
         if not isTrigMatchedDiMu: return False
         icut += 1
-        self.h_count.AddBinContent(icut)
+        self.h_count.AddBinContent(icut,genWeight)
 
         # PU-weight
         puWeight = 1.
         if self.hasPUWeight:
             puWeight = event.puWeight
-        self.h_npv_raw.Fill(event.PV_npvs)
-        self.h_npv.Fill(event.PV_npvs,puWeight)
+        self.h_npv_raw.Fill(event.PV_npvsGood,genWeight)
+        self.h_npv.Fill(event.PV_npvsGood,puWeight*genWeight)
 
         #Additional lepton veto
         nLeptons=0
@@ -218,11 +294,11 @@ class MMAnalysis(Module):
             if not abs(ele.eta)<2.5: continue
             if not ele.mvaFall17V2Iso_WP90: continue #Id with iso variables, WP90
             nLeptons+=1 #MB: can break loop here and exit, but want to count additional leptons (they should be rare in general)
-        self.h_nlep.Fill(nLeptons,puWeight)
+        self.h_nlep.Fill(nLeptons,puWeight*genWeight)
         #3. actual lepton veto
         if nLeptons>=1: return False
         icut += 1
-        self.h_count.AddBinContent(icut)
+        self.h_count.AddBinContent(icut,genWeight)
 
         # jets
         nJets=nBJetsL=nBJetsM=0
@@ -259,129 +335,138 @@ class MMAnalysis(Module):
             diJ = jets[jet1_idx].p4() + jets[jet2_idx].p4()
         #VBF abs(deta_jj)>2.5 and diJ.M()>400
 
-        # Corrected muons p4
-        mu1CorrP4 = ROOT.TLorentzVector()
-        mu2CorrP4 = ROOT.TLorentzVector()
-        #check if corrections are stored
-        if self.hasMuCorr:
-            mu1CorrP4.SetPtEtaPhiM(muons[mu1_idx].corrected_pt,muons[mu1_idx].eta,muons[mu1_idx].phi,muons[mu1_idx].mass)
-            mu2CorrP4.SetPtEtaPhiM(muons[mu2_idx].corrected_pt,muons[mu2_idx].eta,muons[mu2_idx].phi,muons[mu2_idx].mass)
-        else: #use uncorrected pt
-            mu1CorrP4.SetPtEtaPhiM(muons[mu1_idx].pt,muons[mu1_idx].eta,muons[mu1_idx].phi,muons[mu1_idx].mass)
-            mu2CorrP4.SetPtEtaPhiM(muons[mu2_idx].pt,muons[mu2_idx].eta,muons[mu2_idx].phi,muons[mu2_idx].mass)
-            
-        # FSR recovery
-        mu1WFsrP4 = deepcopy(mu1CorrP4)
-        mu2WFsrP4 = deepcopy(mu2CorrP4)
-        if muons[mu1_idx].fsrPhotonIdx>-1:
-            fsrIdx=muons[mu1_idx].fsrPhotonIdx
-            if (fsrPhotons[fsrIdx].dROverEt2<0.012 and
-                fsrPhotons[fsrIdx].relIso03<1.8 and
-                fsrPhotons[fsrIdx].pt/mu1CorrP4.Pt()<0.4):
-                fsrPhotonP4 = ROOT.TLorentzVector()
-                fsrPhotonP4.SetPtEtaPhiM(fsrPhotons[fsrIdx].pt,fsrPhotons[fsrIdx].eta,fsrPhotons[fsrIdx].phi,0)
-                mu1WFsrP4 += fsrPhotonP4
-        if muons[mu2_idx].fsrPhotonIdx>-1:
-            fsrIdx=muons[mu2_idx].fsrPhotonIdx
-            if (fsrPhotons[fsrIdx].dROverEt2<0.012 and
-                fsrPhotons[fsrIdx].relIso03<1.8 and
-                fsrPhotons[fsrIdx].pt/mu2CorrP4.Pt()<0.4):
-                fsrPhotonP4 = ROOT.TLorentzVector()
-                fsrPhotonP4.SetPtEtaPhiM(fsrPhotons[fsrIdx].pt,fsrPhotons[fsrIdx].eta,fsrPhotons[fsrIdx].phi,0)
-                mu2WFsrP4 += fsrPhotonP4
-
-        diMu = muons[mu1_idx].p4() + muons[mu2_idx].p4()
-        diMuCorr = mu1CorrP4 + mu2CorrP4
-        diMuWFsr = mu1WFsrP4 + mu2WFsrP4
-
         #DY pt(mm) weight to account for missing higher order calc and resummation
         #Delivered by comparing DY MC and data around Z-peak in n-jet bins and
         # ad-hoc parameterised with polynomials of 7/8-th order
+        nJetWeight = 1.
         ptWeight = 1.
-        if self.isDY:
-            diMu_pt = min(diMuWFsr.Pt(),199.5)
-            if jet1_idx == -1: #0-jet
-                ptWeight = (0.671731
-                            +0.062859 * diMu_pt
-                            -0.0035237 * pow(diMu_pt,2)
-                            +0.000106116 * pow(diMu_pt,3)
-                            -1.51184e-06 * pow(diMu_pt,4)
-                            +1.07451e-08 * pow(diMu_pt,5)
-                            -3.7115e-11 * pow(diMu_pt,6)
-                            +4.96315e-14 * pow(diMu_pt,7))
-            elif jet2_idx == -1: #1-jet
-                ptWeight = (0.60034
-                            +0.0719654 * diMu_pt
-                            -0.00359921 * pow(diMu_pt,2)
-                            +8.13379e-05 * pow(diMu_pt,3)
-                            -9.57577e-07 * pow(diMu_pt,4)
-                            +6.09171e-09 * pow(diMu_pt,5)
-                            -1.98696e-11 * pow(diMu_pt,6)
-                            +2.60659e-14 * pow(diMu_pt,7))
-            else: #2-jet
-                ptWeight = (0.555797
-                            +0.0712998 * diMu_pt
-                            -0.00360608 * pow(diMu_pt,2)
-                            +9.1347e-05 * pow(diMu_pt,3)
-                            -1.31615e-06 * pow(diMu_pt,4)
-                            +1.12552e-08 * pow(diMu_pt,5)
-                            -5.6584e-11 * pow(diMu_pt,6)
-                            +1.54439e-13 * pow(diMu_pt,7)
-                            -1.76493e-16 * pow(diMu_pt,8))
+        if self.isDY > 0:
+            diMu_pt = min(diMuWFsr.Pt(),194.5)
+            if self.isDY == 1: #LO
+                if jet1_idx == -1: #0-jet
+                    nJetWeight = 0.8284
+                    ptWeight = (0.671731
+                                +0.062859 * diMu_pt
+                                -0.0035237 * pow(diMu_pt,2)
+                                +0.000106116 * pow(diMu_pt,3)
+                                -1.51184e-06 * pow(diMu_pt,4)
+                                +1.07451e-08 * pow(diMu_pt,5)
+                                -3.7115e-11 * pow(diMu_pt,6)
+                                +4.96315e-14 * pow(diMu_pt,7))
+                elif jet2_idx == -1: #1-jet
+                    nJetWeight = 1.0151
+                    ptWeight = (0.60034
+                                +0.0719654 * diMu_pt
+                                -0.00359921 * pow(diMu_pt,2)
+                                +8.13379e-05 * pow(diMu_pt,3)
+                                -9.57577e-07 * pow(diMu_pt,4)
+                                +6.09171e-09 * pow(diMu_pt,5)
+                                -1.98696e-11 * pow(diMu_pt,6)
+                                +2.60659e-14 * pow(diMu_pt,7))
+                else: #>=2-jet
+                    nJetWeight = 1.1443
+                    ptWeight = (0.555797
+                                +0.0712998 * diMu_pt
+                                -0.00360608 * pow(diMu_pt,2)
+                                +9.1347e-05 * pow(diMu_pt,3)
+                                -1.31615e-06 * pow(diMu_pt,4)
+                                +1.12552e-08 * pow(diMu_pt,5)
+                                -5.6584e-11 * pow(diMu_pt,6)
+                                +1.54439e-13 * pow(diMu_pt,7)
+                                -1.76493e-16 * pow(diMu_pt,8))
+            else: #NLO
+                if jet1_idx == -1: #0-jet
+                    nJetWeight = 0.9040
+                    diMu_pt = min(diMu_pt,110)
+                    ptWeight = (0.660414
+                                +0.0701017 * diMu_pt
+                                -0.00375595 * pow(diMu_pt,2)
+                                +9.02523e-05 * pow(diMu_pt,3)
+                                -9.67396e-07 * pow(diMu_pt,4)
+                                +4.65835e-09 * pow(diMu_pt,5)
+                                -8.26500e-12 * pow(diMu_pt,6))
+                elif jet2_idx == -1: #1-jet
+                    nJetWeight = 0.9618
+                    ptWeight = (0.631134
+                                +0.120251 * diMu_pt
+                                -0.00843519 * pow(diMu_pt,2)
+                                +0.000253573 * pow(diMu_pt,3)
+                                -4.063e-06 * pow(diMu_pt,4)
+                                +3.73354e-08 * pow(diMu_pt,5)
+                                -1.97356e-10 * pow(diMu_pt,6)
+                                +5.57979e-13 * pow(diMu_pt,7)
+                                -6.53513e-16 * pow(diMu_pt,8))
+                else: #>=2-jet
+                    nJetWeight = 1.0247
+                    ptWeight = (0.646843
+                                +0.106985 * diMu_pt
+                                -0.00773057 * pow(diMu_pt,2)
+                                +0.000255507 * pow(diMu_pt,3)
+                                -4.71148e-06 * pow(diMu_pt,4)
+                                +5.23243e-08 * pow(diMu_pt,5)
+                                -3.57873e-10 * pow(diMu_pt,6)
+                                +1.47479e-12 * pow(diMu_pt,7)
+                                -3.35721e-15 * pow(diMu_pt,8)
+                                +3.24135e-18 * pow(diMu_pt,9))
 
         # fill histograms
-        self.h_njet.Fill(nJets,puWeight*ptWeight)
-        self.h_nbjet.Fill(nBJetsL,puWeight*ptWeight)
-        self.h_nbjet2.Fill(nBJetsM,puWeight*ptWeight)
+        self.h_njet.Fill(nJets,puWeight*genWeight*ptWeight*nJetWeight)
+        self.h_nbjet.Fill(nBJetsL,puWeight*genWeight*ptWeight*nJetWeight)
+        self.h_nbjet2.Fill(nBJetsM,puWeight*genWeight*ptWeight*nJetWeight)
 
-        self.h_m_mm_wb.Fill(diMu.M(),puWeight*ptWeight)
+        self.h_pt_mm_wb.Fill(diMu.Pt(),puWeight*genWeight*ptWeight*nJetWeight)
+        self.h_m_mm_wb.Fill(diMu.M(),puWeight*genWeight*ptWeight*nJetWeight)
         #b-jet veto
         if (nBJetsL>=2 or nBJetsM>=1): return False
         icut += 1
-        self.h_count.AddBinContent(icut)
+        self.h_count.AddBinContent(icut,genWeight)
 
-        self.h_pt1.Fill(muons[mu1_idx].pt,puWeight*ptWeight)
-        self.h_pt2.Fill(muons[mu2_idx].pt,puWeight*ptWeight)
-        self.h_pt1_corr.Fill(mu1CorrP4.Pt(),puWeight*ptWeight)
-        self.h_pt2_corr.Fill(mu2CorrP4.Pt(),puWeight*ptWeight)
+        self.h_pt1.Fill(muons[mu1_idx].pt,puWeight*genWeight*ptWeight*nJetWeight)
+        self.h_pt2.Fill(muons[mu2_idx].pt,puWeight*genWeight*ptWeight*nJetWeight)
+        self.h_pt1_corr.Fill(mu1CorrP4.Pt(),puWeight*genWeight*ptWeight*nJetWeight)
+        self.h_pt2_corr.Fill(mu2CorrP4.Pt(),puWeight*genWeight*ptWeight*nJetWeight)
         if muons[mu1_idx].charge<0:
-            self.h_ptn.Fill(muons[mu1_idx].pt,puWeight*ptWeight)
-            self.h_ptp.Fill(muons[mu2_idx].pt,puWeight*ptWeight)
+            self.h_ptn.Fill(muons[mu1_idx].pt,puWeight*genWeight*ptWeight*nJetWeight)
+            self.h_ptp.Fill(muons[mu2_idx].pt,puWeight*genWeight*ptWeight*nJetWeight)
         else:
-            self.h_ptp.Fill(muons[mu1_idx].pt,puWeight*ptWeight)
-            self.h_ptn.Fill(muons[mu2_idx].pt,puWeight*ptWeight)
+            self.h_ptp.Fill(muons[mu1_idx].pt,puWeight*genWeight*ptWeight*nJetWeight)
+            self.h_ptn.Fill(muons[mu2_idx].pt,puWeight*genWeight*ptWeight*nJetWeight)
             
         #di-mu variables
-        self.h_pt_mm.Fill(diMu.Pt(),puWeight*ptWeight)
-        self.h_m_mm.Fill(diMu.M(),puWeight*ptWeight)
-        self.h_pt_mm_corr.Fill(diMuCorr.Pt(),puWeight*ptWeight)
-        self.h_m_mm_corr.Fill(diMuCorr.M(),puWeight*ptWeight)
-        self.h_pt_mm_fsr.Fill(diMuWFsr.Pt(),puWeight*ptWeight)
-        self.h_m_mm_fsr.Fill(diMuWFsr.M(),puWeight*ptWeight)
+        self.h_pt_mm.Fill(diMu.Pt(),puWeight*genWeight*ptWeight*nJetWeight)
+        self.h_m_mm.Fill(diMu.M(),puWeight*genWeight*ptWeight*nJetWeight)
+        self.h_pt_mm_corr.Fill(diMuCorr.Pt(),puWeight*genWeight*ptWeight*nJetWeight)
+        self.h_m_mm_corr.Fill(diMuCorr.M(),puWeight*genWeight*ptWeight*nJetWeight)
+        self.h_pt_mm_fsr.Fill(diMuWFsr.Pt(),puWeight*genWeight*ptWeight*nJetWeight)
+        self.h_m_mm_fsr.Fill(diMuWFsr.M(),puWeight*genWeight*ptWeight*nJetWeight)
         #pT(mm) for reweight
         if diMuWFsr.M() > 70 and diMuWFsr.M() < 110:
+            self.h_njet_z.Fill(nJets,puWeight*genWeight)
+            self.h_njet_zw.Fill(nJets,puWeight*genWeight*ptWeight*nJetWeight)
+            self.h_pt_mm_z.Fill(diMuWFsr.Pt(),puWeight*genWeight)
+            self.h_pt_mm_zw.Fill(diMuWFsr.Pt(),puWeight*genWeight*ptWeight*nJetWeight)
             if jet1_idx == -1:
-                self.h_pt_mm_0j.Fill(diMuWFsr.Pt(),puWeight)
-                self.h_pt_mm_0jw.Fill(diMuWFsr.Pt(),puWeight*ptWeight)
+                self.h_pt_mm_0j.Fill(diMuWFsr.Pt(),puWeight*genWeight)
+                self.h_pt_mm_0jw.Fill(diMuWFsr.Pt(),puWeight*genWeight*ptWeight*nJetWeight)
             elif jet2_idx == -1:
-                self.h_pt_mm_1j.Fill(diMuWFsr.Pt(),puWeight)
-                self.h_pt_mm_1jw.Fill(diMuWFsr.Pt(),puWeight*ptWeight)
+                self.h_pt_mm_1j.Fill(diMuWFsr.Pt(),puWeight*genWeight)
+                self.h_pt_mm_1jw.Fill(diMuWFsr.Pt(),puWeight*genWeight*ptWeight*nJetWeight)
             else:
-                self.h_pt_mm_2j.Fill(diMuWFsr.Pt(),puWeight)
-                self.h_pt_mm_2jw.Fill(diMuWFsr.Pt(),puWeight*ptWeight)
+                self.h_pt_mm_2j.Fill(diMuWFsr.Pt(),puWeight*genWeight)
+                self.h_pt_mm_2jw.Fill(diMuWFsr.Pt(),puWeight*genWeight*ptWeight*nJetWeight)
         #jet variables
         if jet1_idx>-1:
-            self.h_ptj1.Fill(jets[jet1_idx].pt,puWeight*ptWeight)
+            self.h_ptj1.Fill(jets[jet1_idx].pt,puWeight*genWeight*ptWeight*nJetWeight)
             if jet2_idx>-1:
-                self.h_ptj2.Fill(jets[jet2_idx].pt,puWeight*ptWeight)
-                self.h_deta_jj.Fill(deta_jj,puWeight*ptWeight)
-                self.h_m_jj.Fill(diJ.M(),puWeight*ptWeight)
+                self.h_ptj2.Fill(jets[jet2_idx].pt,puWeight*genWeight*ptWeight*nJetWeight)
+                self.h_deta_jj.Fill(deta_jj,puWeight*genWeight*ptWeight*nJetWeight)
+                self.h_m_jj.Fill(diJ.M(),puWeight*genWeight*ptWeight*nJetWeight)
         #VBF
         if (jet1_idx>-1 and jet2_idx>-1 and jets[jet1_idx].pt>35 and
             diJ.M()>400 and abs(deta_jj)>2.5):
-            self.m_mm_vbf.Fill(diMuWFsr.M(),puWeight*ptWeight)
+            self.m_mm_vbf.Fill(diMuWFsr.M(),puWeight*genWeight*ptWeight*nJetWeight)
         elif diMuWFsr.Pt()>130:
-            self.m_mm_bst.Fill(diMuWFsr.M(),puWeight*ptWeight)
+            self.m_mm_bst.Fill(diMuWFsr.M(),puWeight*genWeight*ptWeight*nJetWeight)
 
         #the End
         return True
@@ -397,6 +482,7 @@ samples = {
     'vbfH125': [dataDir+'/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/nanoAOD_Skim_*.root',0.0008228], #sigma*Br=0.0008228pb
     'DYToLL_tst': [dataDir+'/DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8/nanoAOD_Skim_10.root',6225.4], #sigma=6225.4pb
     'DYToLL': [dataDir+'/DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8/nanoAOD_Skim_*.root',6225.4], #sigma=6225.4pb
+    'DYToLL_NLO_ext2': [dataDir+'/DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8_ext2/nanoAOD_Skim_*.root',6225.4], #sigma=6225.4pb
     'ewk2l2j': [dataDir+'/EWK_LLJJ_MLL-50_MJJ-120_TuneCH3_PSweights_13TeV-madgraph-herwig7_corrected/nanoAOD_Skim_*.root',1.029], #sigma=1.029pb
     'tt2l2nu': [dataDir+'/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/nanoAOD_Skim_*.root',86.61], #sigma=86.61pb
     'tt2l2nu_tst': [dataDir+'/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/nanoAOD_Skim_1.root',86.61], #sigma=86.61pb
@@ -406,42 +492,60 @@ samples = {
     'tWatop_ext1': [dataDir+'/ST_tW_antitop_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8_ext1/nanoAOD_Skim_*.root',39.5], #sigma=39.5pb, 7527000
     'tWtop_ext1': [dataDir+'/ST_tW_top_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8_ext1/nanoAOD_Skim_*.root',39.5], #sigma=39.5pb, 9598000
     't_sch': [dataDir+'/ST_s-channel_4f_leptonDecays_TuneCP5_13TeV-madgraph-pythia8/nanoAOD_Skim_*.root',3.40], #sigma=3.40pb, 19965000
+    'ww2l2nu': [dataDir+'/WWTo2L2Nu_NNPDF31_TuneCP5_13TeV-powheg-pythia8/nanoAOD_Skim_*.root',12.178], #7758900
+    'wz3l1nu_ext1': [dataDir+'/WZTo3LNu_TuneCP5_13TeV-powheg-pythia8/nanoAOD_Skim_*.root',4.658], #1976600
+    'wz2l2q': [dataDir+'/WZTo2L2Q_13TeV_amcatnloFXFX_madspin_pythia8/nanoAOD_Skim_*.root',6.321], #28193648 !negative w
+    'zz2l2nu_ext1': [dataDir+'/ZZTo2L2Nu_TuneCP5_13TeV_powheg_pythia8/nanoAOD_Skim_*.root',0.601], #8382600
+    'zz2l2q': [dataDir+'/ZZTo2L2Q_13TeV_amcatnloFXFX_madspin_pythia8/nanoAOD_Skim_*.root',3.696], #27900469 !negative w
+    'zz4l_ext1': [dataDir+'/ZZTo4L_TuneCP5_13TeV_powheg_pythia8/nanoAOD_Skim_*.root',1.325], #6689900
     'Run2018A': [dataDir+'/SingleMuon/Run2018A/nanoAOD_Skim_*.root',-1], #315257-316996 14.03/fb
     'Run2018A_tst': [dataDir+'/SingleMuon/Run2018A/nanoAOD_Skim_1.root',-1], #315257-316996 14.03/fb
     'Run2018B': [dataDir+'/SingleMuon/Run2018B/nanoAOD_Skim_*.root',-1], #317080-319310 7.06/fb
     'Run2018C': [dataDir+'/SingleMuon/Run2018C/nanoAOD_Skim_*.root',-1], #319337-320655 6.89/fb
+    'Run2018D': [dataDir+'/SingleMuon/Run2018D/nanoAOD_Skim_*.root',-1], #319337-320655 6.89/fb
     'Run2018All': [dataDir+'/SingleMuon/Run2018?/nanoAOD_Skim_*.root',-1], #59.83/fb
 }
-preselection ="" #MB: "HLT_IsoMu24" Trigger requirement moved into analyser for event counting and normalisation (anyway higly efficient on top of current preselection)
+preselection ="" #MB: "HLT_IsoMu24" Trigger requirement moved into analyser for event counting and normalisation (anyway higly efficient on top of current preselection) Warning! preselection can affect automated normalisation!
+#preselection ="HLT_IsoMu24 && nMuon>1 && Muon_pt[0]>35 && Muon_pt[1]>20"
 #branchsel = None #no branch selection at input/output
 branchsel = 'keep_and_drop_input_mm.txt' #file with branches selection to speedup processing
 outDir="histoFiles"
 for dataset in [
-    'ggH125_tst',
+    ##'ggH125_tst',
     ##'tt2l2nu_tst',
-    #'DYToLL_tst',
+    ##'DYToLL_tst',
     ##'Run2018A_tst',
-    #'ggH125',
-    #'vbfH125',
-    #'tt2l2nu',
-    #'ttsemil',
-    #'atop_tch',
-    #'top_tch',
-    #'tWatop_ext1',
-    #'tWtop_ext1',
-    #'t_sch',
-    #'ewk2l2j',
-    #'DYToLL',
-    #'Run2018All',
-]:
+    'ggH125',
+    'vbfH125',
+    'tt2l2nu',
+    'ttsemil',
+    'atop_tch',
+    'top_tch',
+    'tWatop_ext1',
+    'tWtop_ext1',
+    't_sch',
+    'ww2l2nu',
+    'wz3l1nu_ext1',
+    'wz2l2q',
+    'zz2l2nu_ext1',
+    'zz2l2q',
+    'zz4l_ext1',
+    'ewk2l2j',
+    'DYToLL',
+    'DYToLL_NLO_ext2',
+    'Run2018All',
+    ##'Run2018A',
+    ##'Run2018B',
+    ##'Run2018C',
+    ##'Run2018D',
+    ]:
     print 'Processing', dataset
     files = glob.glob(samples[dataset][0])
     histFileName = outDir+'/histOut_'+dataset+'.root'
     p = PostProcessor(
         outDir, files, cut=preselection, branchsel=branchsel, 
         modules=[
-            #muonScaleRes2018(), #muons scale corrections (Rochester)
-            MMAnalysis() #my mm-analysis module
+            MMAnalysis(xsec=samples[dataset][1]) #my mm-analysis module
             ], 
         noOut=True, 
         histFileName=histFileName, histDirName="mmPlots")

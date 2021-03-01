@@ -28,18 +28,24 @@ lumi=14.03+7.06+6.89+31.83
 print 'lumi(2018A+B+C+D) =',lumi,'fb-1'
 hscaling=100.
 samples = {
-    'DYToLL': ['Z/#gamma*#rightarrow#mu#mu',6225.4*1000,100194597],
-    'tt2l2nu': ['t#bar{t}',86.61*1000,64310000],
-    'ewk2l2j': ['Zjj-EW',1.029*1000,2959970],
-    'atop_tch': ['#bar{t}, t-channel',80.95*1000,3955024],
-    'top_tch': ['t, t-channel',136.02*1000,5903676],
-    't_sch': ['t, s-channel',3.40*1000,19965000],
-    'ttsemil': ['t#bar{t}',358.57*1000,100790000],
-    'tWatop_ext1': ['#bar{t}W',39.5*1000,7527000],
-    'tWtop_ext1': ['tW',39.5*1000,9598000],
-    'ggH125': ['gg#rightarrowH#rightarrow#mu#mu',0.01057*1000,1920000],
-    'vbfH125': ['q#bar{q}#rightarrowq#bar{q}H#rightarrow#mu#mu',0.0008228*1000,1000000],
-    'Run2018All': ['Data',-1,-1]
+    'DYToLL': ['Z/#gamma*#rightarrow#mu#mu'],
+    'tt2l2nu': ['t#bar{t}'],
+    'ewk2l2j': ['Zjj-EW'],
+    'atop_tch': ['#bar{t}, t-channel'],
+    'top_tch': ['t, t-channel'],
+    't_sch': ['t, s-channel'],
+    'ttsemil': ['t#bar{t}'],
+    'tWatop_ext1': ['#bar{t}W'],
+    'tWtop_ext1': ['tW'],
+    'ww2l2nu': ['WW'],
+    'wz3l1nu_ext1': ['WZ'],
+    'wz2l2q': ['WZ'],
+    'zz2l2nu_ext1': ['ZZ'],
+    'zz2l2q': ['ZZ'],
+    'zz4l_ext1': ['ZZ'],
+    'ggH125': ['gg#rightarrowH#rightarrow#mu#mu'],
+    'vbfH125': ['q#bar{q}#rightarrowq#bar{q}H#rightarrow#mu#mu'],
+    'Run2018All': ['Data']
 }
 
 h_names = {
@@ -49,8 +55,17 @@ h_names = {
     'm_mm_corr': [],
     'm_mm_bst': [],
     'm_mm_vbf': [],
+    'pt_mm_wb': [],
     'pt_mm_fsr': [],
     'pt_mm': [],
+    'pt_mm_z': [],
+    'pt_mm_zw': [],
+    'pt_mm_0j': [],
+    'pt_mm_1j': [],
+    'pt_mm_2j': [],
+    'pt_mm_0jw': [],
+    'pt_mm_1jw': [],
+    'pt_mm_2jw': [],
     #'hcount': [],
     'npv': [],
     'npv_raw': [],
@@ -62,18 +77,21 @@ h_names = {
     'm_jj': [],
     'deta_jj': [],
     'njet': [],
+    'njet_z': [],
+    'njet_zw': [],
     'nbjet': [],
 }
 
-for sample in ['tt2l2nu','DYToLL','ggH125','vbfH125','ewk2l2j','ttsemil','atop_tch','top_tch','tWatop_ext1','tWtop_ext1','t_sch','Run2018All']:
+for sample in ['tt2l2nu','DYToLL','ggH125','vbfH125','ewk2l2j',
+               'ttsemil','atop_tch','top_tch','tWatop_ext1','tWtop_ext1','t_sch',
+               'ww2l2nu','wz3l1nu_ext1','wz2l2q','zz2l2nu_ext1','zz2l2q','zz4l_ext1',
+               'Run2018All']:
     #print sample, samples[sample][0], samples[sample][1], samples[sample][2]
     f_in=ROOT.TFile.Open(histoDir+'histOut_'+sample+'.root')
-    #f_in.cd('mmPlots')
-    #f_in.ls()
-    scale = 1
-    if samples[sample][1] > -1:
-        scale = lumi*samples[sample][1]/samples[sample][2]
-    print sample, scale
+    scale = 1.
+    if samples[sample][0].find('Data')==-1 and sample.find('Run')==-1:
+        scale = lumi*1000.
+    #print sample, scale
     for h_name in h_names:
         h = f_in.Get('mmPlots/'+h_name).Clone(h_name+'_'+sample)
         h.Scale(scale)
@@ -98,6 +116,18 @@ for h_name in h_names:
     h_names[h_name][4].SetFillColor(ROOT.kMagenta+1)
     h_names[h_name][4].SetLineColor(ROOT.kBlack)
     hSum.Add(h_names[h_name][4])
+    #di-boson
+    h_VV = deepcopy(h_names[h_name][11].Clone(h_name+'_VV'))
+    h_VV.Reset()
+    h_VV.Add(h_names[h_name][11]) #WW->2l2nu
+    h_VV.Add(h_names[h_name][12]) #WZ->3l1nu
+    h_VV.Add(h_names[h_name][13]) #WZ->2l2q
+    h_VV.Add(h_names[h_name][14]) #ZZ->2l2nu
+    h_VV.Add(h_names[h_name][15]) #ZZ->2l2q
+    h_VV.Add(h_names[h_name][16]) #ZZ->4l
+    h_VV.SetFillColor(ROOT.kCyan-3)
+    h_VV.SetLineColor(ROOT.kBlack)
+    hSum.Add(h_VV)
     #top
     h_top = deepcopy(h_names[h_name][0].Clone(h_name+'_top'))
     h_top.Reset()
@@ -150,7 +180,8 @@ for h_name in h_names:
     leg.AddEntry(h_names[h_name][len(h_names[h_name])-1],"Data","LPE") #add marker to data?
     leg.AddEntry(h_names[h_name][1],'Z/#gamma*#rightarrow#mu#mu',"F1")
     leg.AddEntry(h_names[h_name][4],'#mu#mujj-EW',"F1") #FIXME: always?
-    leg.AddEntry(h_top,'top',"F1")
+    leg.AddEntry(h_top,'Top quark',"F1")
+    leg.AddEntry(h_VV,'Di-boson',"F1")
     if hscaling>1 and h_name.find('m_mm')>-1:
         #hscaling_str = ' #times'+str(hscaling)
         hscaling_str = ' #times'+str(int(round(hscaling)))
