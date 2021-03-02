@@ -202,3 +202,5 @@ for h_name in h_names:
     CMS_lumi.CMS_lumi(canvas,iPeriod,iPos)
     
     canvas.SaveAs(h_name+'.png')
+    canvas.SetLogy(0)
+    canvas.SaveAs(h_name+'_lin.png')
