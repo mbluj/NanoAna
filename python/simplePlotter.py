@@ -1,4 +1,5 @@
 # The following needs to come before any other ROOT import and before argparse
+import os
 from copy import deepcopy
 import ROOT
 ROOT.PyConfig.IgnoreCommandLineOptions = True
@@ -24,6 +25,7 @@ def configureLegend(leg, ncolumn):
     leg.SetTextFont(42)
 
 histoDir = 'histoFiles/'
+outDir = 'plots/'
 lumi=14.03+7.06+6.89+31.83
 print 'lumi(2018A+B+C+D) =',lumi,'fb-1'
 hscaling=100.
@@ -81,6 +83,9 @@ h_names = {
     'njet_zw': [],
     'nbjet': [],
 }
+
+if not os.path.isdir(outDir):
+    os.mkdir(outDir)
 
 for sample in ['tt2l2nu','DYToLL','ggH125','vbfH125','ewk2l2j',
                'ttsemil','atop_tch','top_tch','tWatop_ext1','tWtop_ext1','t_sch',
@@ -201,6 +206,6 @@ for h_name in h_names:
     if( iPos==0 ): CMS_lumi.relPosX = 0.16
     CMS_lumi.CMS_lumi(canvas,iPeriod,iPos)
     
-    canvas.SaveAs(h_name+'.png')
+    canvas.SaveAs(outDir+'/'+h_name+'.png')
     canvas.SetLogy(0)
-    canvas.SaveAs(h_name+'_lin.png')
+    canvas.SaveAs(outDir+'/'+h_name+'_lin.png')
