@@ -34,12 +34,12 @@ samples = {
     'zz2l2nu_ext1': [dataDir+'/ZZTo2L2Nu_TuneCP5_13TeV_powheg_pythia8/nanoAOD_Skim_*.root',0.601], #8382600
     'zz2l2q': [dataDir+'/ZZTo2L2Q_13TeV_amcatnloFXFX_madspin_pythia8/nanoAOD_Skim_*.root',3.696], #27900469 !negative w
     'zz4l_ext1': [dataDir+'/ZZTo4L_TuneCP5_13TeV_powheg_pythia8/nanoAOD_Skim_*.root',1.325], #6689900
-    'Run2018A': [dataDir+'/SingleMuon/Run2018A-02Apr2020_NANOAOD_MMSkim-v3/nanoAOD_Skim_*.root',-1], #315257-316996 14.03/fb
-    'Run2018A_tst': [dataDir+'/SingleMuon/Run2018A-02Apr2020_NANOAOD_MMSkim-v3/nanoAOD_Skim_1.root',-1], #315257-316996 14.03/fb
-    'Run2018B': [dataDir+'/SingleMuon/Run2018B-02Apr2020_NANOAOD_MMSkim-v3/nanoAOD_Skim_*.root',-1], #317080-319310 7.06/fb
-    'Run2018C': [dataDir+'/SingleMuon/Run2018C-02Apr2020_NANOAOD_MMSkim-v3/nanoAOD_Skim_*.root',-1], #319337-320655 6.89/fb
-    'Run2018D': [dataDir+'/SingleMuon/Run2018B-02Apr2020_NANOAOD_MMSkim-v3/nanoAOD_Skim_*.root',-1], #319337-320655 6.89/fb
-    'Run2018All': [dataDir+'/SingleMuon/Run2018?-02Apr2020_NANOAOD_MMSkim-v3/nanoAOD_Skim_*.root',-1], #59.83/fb
+    'Run2018A': [dataDir+'/SingleMuon/Run2018A-02Apr2020_NANOAOD_MMSkim-v3/*/0000/nanoAOD_Skim_*.root',-1], #315257-316996 14.03/fb
+    'Run2018A_tst': [dataDir+'/SingleMuon/Run2018A-02Apr2020_NANOAOD_MMSkim-v3/*/0000/nanoAOD_Skim_1.root',-1], #315257-316996 14.03/fb
+    'Run2018B': [dataDir+'/SingleMuon/Run2018B-02Apr2020_NANOAOD_MMSkim-v3/*/0000/nanoAOD_Skim_*.root',-1], #317080-319310 7.06/fb
+    'Run2018C': [dataDir+'/SingleMuon/Run2018C-02Apr2020_NANOAOD_MMSkim-v3/*/0000/nanoAOD_Skim_*.root',-1], #319337-320655 6.89/fb
+    'Run2018D': [dataDir+'/SingleMuon/Run2018D-02Apr2020_NANOAOD_MMSkim-v3/*/0000/nanoAOD_Skim_*.root',-1], #319337-320655 6.89/fb
+    'Run2018All': [dataDir+'/SingleMuon/Run2018?-02Apr2020_NANOAOD_MMSkim-v3/*/0000/nanoAOD_Skim_*.root',-1], #59.83/fb
 }
 
 ###
