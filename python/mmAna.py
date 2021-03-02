@@ -11,18 +11,17 @@ import ROOT
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 ### Input samples
-dataDir = '/home/mbluj/work/data/NanoAOD/Nanov7_MMSkim_v2/'
+dataDir = '/mnt/shared/slc7_sf/akalinow/CMS/Data/NanoAOD_MMSkim/'
 samples = {
     # name " [files, x-sec-in-pb]
-    'ggH125_tst': [dataDir+'/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/nanoAOD_Skim_1.root',0.01057], #sigma*Br=0.01057pb
-    'ggH125': [dataDir+'/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8*/nanoAOD_Skim_*.root',0.01057], #sigma*Br=0.01057pb
-    'vbfH125': [dataDir+'/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/nanoAOD_Skim_*.root',0.0008228], #sigma*Br=0.0008228pb
-    'DYToLL_tst': [dataDir+'/DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8/nanoAOD_Skim_10.root',6225.4], #sigma=6225.4pb
-    'DYToLL': [dataDir+'/DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8/nanoAOD_Skim_*.root',6225.4], #sigma=6225.4pb
-    'DYToLL_NLO_ext2': [dataDir+'/DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8_ext2/nanoAOD_Skim_*.root',6225.4], #sigma=6225.4pb
+    'ggH125_tst': [dataDir+'/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/RunIIAutumn18NanoAODv7-Nano02Apr2020_102X_upgrade2018_realistic_v21_MMSkim-v4/*/0000/nanoAOD_Skim_1.root',0.01057], #sigma*Br=0.01057pb
+    'ggH125': [dataDir+'/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/RunIIAutumn18NanoAODv7-Nano02Apr2020_102X_upgrade2018_realistic_v21_MMSkim-v4*/*/0000/nanoAOD_Skim_*.root',0.01057], #sigma*Br=0.01057pb
+    'vbfH125': [dataDir+'/GluGluHToMuMu_M-125_TuneCP5_PSweights_13TeV_powheg_pythia8/RunIIAutumn18NanoAODv7-Nano02Apr2020_102X_upgrade2018_realistic_v21_MMSkim-v4/*/0000/nanoAOD_Skim_*.root',0.0008228], #sigma*Br=0.0008228pb
+    'DYToLL_tst': [dataDir+'/DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8/RunIIAutumn18NanoAODv7-Nano02Apr2020_102X_upgrade2018_realistic_v21_MMSkim-v4/*/0000/nanoAOD_Skim_10.root',6225.4], #sigma=6225.4pb
+    'DYToLL': [dataDir+'/DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8/RunIIAutumn18NanoAODv7-Nano02Apr2020_102X_upgrade2018_realistic_v21_MMSkim-v4/*/0000/nanoAOD_Skim_*.root',6225.4], #sigma=6225.4pb
     'ewk2l2j': [dataDir+'/EWK_LLJJ_MLL-50_MJJ-120_TuneCH3_PSweights_13TeV-madgraph-herwig7_corrected/nanoAOD_Skim_*.root',1.029], #sigma=1.029pb
-    'tt2l2nu': [dataDir+'/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/nanoAOD_Skim_*.root',86.61], #sigma=86.61pb
-    'tt2l2nu_tst': [dataDir+'/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/nanoAOD_Skim_1.root',86.61], #sigma=86.61pb
+    'tt2l2nu': [dataDir+'/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/RunIIAutumn18NanoAODv7-Nano02Apr2020_102X_upgrade2018_realistic_v21_MMSkim-v4/*/0000/nanoAOD_Skim_*.root',86.61], #sigma=86.61pb
+    'tt2l2nu_tst': [dataDir+'/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/RunIIAutumn18NanoAODv7-Nano02Apr2020_102X_upgrade2018_realistic_v21_MMSkim-v4/*/0000/nanoAOD_Skim_1.root',86.61], #sigma=86.61pb
     'ttsemil': [dataDir+'/TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8/nanoAOD_Skim_*.root',358.57], #sigma=358.57pb, 100790000
     'atop_tch': [dataDir+'/ST_t-channel_antitop_5f_TuneCP5_13TeV-powheg-pythia8/nanoAOD_Skim_*.root',80.95], #sigma=80.95pb, 3955024
     'top_tch': [dataDir+'/ST_t-channel_top_5f_TuneCP5_13TeV-powheg-pythia8/nanoAOD_Skim_*.root',136.02], #sigma=136.02pb, 5903676
@@ -35,17 +34,17 @@ samples = {
     'zz2l2nu_ext1': [dataDir+'/ZZTo2L2Nu_TuneCP5_13TeV_powheg_pythia8/nanoAOD_Skim_*.root',0.601], #8382600
     'zz2l2q': [dataDir+'/ZZTo2L2Q_13TeV_amcatnloFXFX_madspin_pythia8/nanoAOD_Skim_*.root',3.696], #27900469 !negative w
     'zz4l_ext1': [dataDir+'/ZZTo4L_TuneCP5_13TeV_powheg_pythia8/nanoAOD_Skim_*.root',1.325], #6689900
-    'Run2018A': [dataDir+'/SingleMuon/Run2018A/nanoAOD_Skim_*.root',-1], #315257-316996 14.03/fb
-    'Run2018A_tst': [dataDir+'/SingleMuon/Run2018A/nanoAOD_Skim_1.root',-1], #315257-316996 14.03/fb
-    'Run2018B': [dataDir+'/SingleMuon/Run2018B/nanoAOD_Skim_*.root',-1], #317080-319310 7.06/fb
-    'Run2018C': [dataDir+'/SingleMuon/Run2018C/nanoAOD_Skim_*.root',-1], #319337-320655 6.89/fb
-    'Run2018D': [dataDir+'/SingleMuon/Run2018D/nanoAOD_Skim_*.root',-1], #319337-320655 6.89/fb
-    'Run2018All': [dataDir+'/SingleMuon/Run2018?/nanoAOD_Skim_*.root',-1], #59.83/fb
+    'Run2018A': [dataDir+'/SingleMuon/Run2018A-02Apr2020_NANOAOD_MMSkim-v3/nanoAOD_Skim_*.root',-1], #315257-316996 14.03/fb
+    'Run2018A_tst': [dataDir+'/SingleMuon/Run2018A-02Apr2020_NANOAOD_MMSkim-v3/nanoAOD_Skim_1.root',-1], #315257-316996 14.03/fb
+    'Run2018B': [dataDir+'/SingleMuon/Run2018B-02Apr2020_NANOAOD_MMSkim-v3/nanoAOD_Skim_*.root',-1], #317080-319310 7.06/fb
+    'Run2018C': [dataDir+'/SingleMuon/Run2018C-02Apr2020_NANOAOD_MMSkim-v3/nanoAOD_Skim_*.root',-1], #319337-320655 6.89/fb
+    'Run2018D': [dataDir+'/SingleMuon/Run2018B-02Apr2020_NANOAOD_MMSkim-v3/nanoAOD_Skim_*.root',-1], #319337-320655 6.89/fb
+    'Run2018All': [dataDir+'/SingleMuon/Run2018?-02Apr2020_NANOAOD_MMSkim-v3/nanoAOD_Skim_*.root',-1], #59.83/fb
 }
 
 ###
 preselection ="" #MB: "HLT_IsoMu24" Trigger requirement moved into analyser for event counting and normalisation (anyway higly efficient on top of current preselection) Warning! preselection can affect automated normalisation!
-#preselection ="HLT_IsoMu24 && nMuon>1 && Muon_pt[0]>35 && Muon_pt[1]>20"
+#preselection ="HLT_IsoMu24 && nMuon>1 && Muon_pt[0]>26 && Muon_pt[1]>20"
 #branchsel = None #no branch selection at input/output
 branchsel = 'keep_and_drop_input_mm.txt' #file with branches selection to speedup processing
 outDir="histoFiles"
@@ -73,7 +72,6 @@ for dataset in [
     'zz4l_ext1',
     'ewk2l2j',
     'DYToLL',
-    'DYToLL_NLO_ext2',
     'Run2018All',
     ##'Run2018A',
     ##'Run2018B',

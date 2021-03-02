@@ -13,6 +13,6 @@ cmsenv
 git clone https://github.com/cms-nanoAOD/nanoAOD-tools.git PhysicsTools/NanoAODTools
 
 # NanoAna-mmAna
-git clone https://github.com/mbluj/NanoAna-MMAna.git NanoAna/MMAna
+git clone -b devel https://github.com/mbluj/NanoAna-MMAna.git NanoAna/MMAna
 scram b
 ```

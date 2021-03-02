@@ -51,37 +51,15 @@ samples = {
 }
 
 h_names = {
-    'm_mm_wb': [],
     'm_mm': [],
-    'm_mm_fsr': [],
-    'm_mm_corr': [],
-    'm_mm_bst': [],
-    'm_mm_vbf': [],
-    'pt_mm_wb': [],
-    'pt_mm_fsr': [],
     'pt_mm': [],
-    'pt_mm_z': [],
-    'pt_mm_zw': [],
-    'pt_mm_0j': [],
-    'pt_mm_1j': [],
-    'pt_mm_2j': [],
-    'pt_mm_0jw': [],
-    'pt_mm_1jw': [],
-    'pt_mm_2jw': [],
     #'hcount': [],
     'npv': [],
     'npv_raw': [],
     'pt1_corr': [],
     'pt2_corr': [],
-    ##'nlep': [],
     'ptj1': [],
     'ptj2': [],
-    'm_jj': [],
-    'deta_jj': [],
-    'njet': [],
-    'njet_z': [],
-    'njet_zw': [],
-    'nbjet': [],
 }
 
 if not os.path.isdir(outDir):
