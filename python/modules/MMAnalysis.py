@@ -3,6 +3,7 @@ from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
 from PhysicsTools.NanoAODTools.postprocessing.framework.datamodel import Collection
 from PhysicsTools.NanoAODTools.postprocessing.framework.postprocessor import PostProcessor
 import math
+import numpy
 from copy import deepcopy
 import ROOT
 ROOT.PyConfig.IgnoreCommandLineOptions = True
@@ -13,9 +14,10 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 # January 2021
 # 
 class MMAnalysis(Module):
-    def __init__(self, xsec=-1.):
+    def __init__(self, xsec=-1., writeTree=False):
         self.writeHistFile = True
         self.xsec = xsec #in pb
+        self.writeTree = writeTree
 
     def beginJob(self, histFile=None, histDirName=None):
         Module.beginJob(self, histFile, histDirName)
@@ -27,14 +29,68 @@ class MMAnalysis(Module):
             if histFile.GetName().find('NLO')>-1:
                 self.isDY = 2
 
-        self.h_count = ROOT.TH1F('hcount', 'efficiency', 10, 0, 10)
+        # simple output tree
+        if self.writeTree:
+            self.mmTree = ROOT.TTree('mmTree','simple di-mu tree')
+            self.addObject(self.mmTree)
+            #globals to be filled into tree
+            #mu1
+            self.m1p4 = numpy.zeros(4,numpy.float32)
+            self.mmTree.Branch("mu1p4",self.m1p4,"pt/F:eta/F:phi/F:m/F")
+            self.q1 = numpy.zeros(4,numpy.int32)
+            self.mmTree.Branch("q1",self.q1,"q1/I")
+            self.iso1 = numpy.zeros(4,numpy.float32)
+            self.mmTree.Branch("iso1",self.iso1,"iso1/F")
+            self.fsr1p = numpy.zeros(3,numpy.float32)
+            self.mmTree.Branch("fsr1p",self.fsr1p,"pt/F:eta/F:phi/F")
+            #mu2
+            self.m2p4 = numpy.zeros(4,numpy.float32)
+            self.mmTree.Branch("mu2p4",self.m2p4,"pt/F:eta/F:phi/F:m/F")
+            self.q2 = numpy.zeros(4,numpy.int32)
+            self.mmTree.Branch("q2",self.q2,"q2/I")
+            self.iso2 = numpy.zeros(4,numpy.float32)
+            self.mmTree.Branch("iso2",self.iso2,"iso2/F")
+            self.fsr2p = numpy.zeros(3,numpy.float32)
+            self.mmTree.Branch("fsr2p",self.fsr2p,"pt/F:eta/F:phi/F")
+            #j1
+            self.j1p4 = numpy.zeros(4,numpy.float32)
+            self.mmTree.Branch("j1p4",self.j1p4,"pt/F:eta/F:phi/F:m/F")
+            self.deepB1 = numpy.zeros(4,numpy.float32)
+            self.mmTree.Branch("deepB1",self.deepB1,"deepB1/F")
+            #j2
+            self.j2p4 = numpy.zeros(4,numpy.float32)
+            self.mmTree.Branch("j2p4",self.j2p4,"pt/F:eta/F:phi/F:m/F")
+            self.deepB2 = numpy.zeros(4,numpy.float32)
+            self.mmTree.Branch("deepB2",self.deepB2,"deepB2/F")
+            #global event vars
+            self.event = numpy.zeros(1,numpy.uint64)
+            self.mmTree.Branch("event",self.event,"event/l")
+            self.lumi = numpy.zeros(1,numpy.uint32)
+            self.mmTree.Branch("lumi",self.lumi,"lumi/i")
+            self.run = numpy.zeros(1,numpy.uint32)
+            self.mmTree.Branch("run",self.run,"run/i")
+            self.njets = numpy.zeros(1,numpy.int32)
+            self.mmTree.Branch("njet",self.njets,"njet/I")
+            self.nbjets = numpy.zeros(2,numpy.int32)
+            self.mmTree.Branch("nbjet",self.nbjets,"L/I:M/I")
+            self.npvs = numpy.zeros(1,numpy.int32)
+            self.mmTree.Branch("npv",self.npvs,"npv/I")
+            self.weights = numpy.zeros(4,numpy.float32)
+            self.mmTree.Branch("weights",self.weights,"pu/F:gen/F:pt/F:njet/F")
+
+        # histograms
+        self.h_count = ROOT.TH1F('hcount', 'no. of events', 10, 0, 10)
         cut_names = ['init', 'mu-trig', 'met-flags', 'good-PV', 'di-mu', 'trig-match', 'lept-veto', 'b-veto']
         ibin = 1
         for label in cut_names:
             self.h_count.GetXaxis().SetBinLabel(ibin,label)
             ibin += 1
-        self.addObject(self.h_count)        
-        
+        self.addObject(self.h_count)
+        #clone count histogram to store efficiency
+        self.h_eff = self.h_count.Clone('heff')
+        self.h_eff.SetTitle('efficiency')
+        self.addObject(self.h_eff)
+
         self.h_npv = ROOT.TH1F('npv', ';no. of vertices; Events', 80, 0, 80)
         self.addObject(self.h_npv)
         self.h_npv_raw = ROOT.TH1F('npv_raw', ';no. of vertices w/o pileup weight; Events', 80, 0, 80)
@@ -115,15 +171,26 @@ class MMAnalysis(Module):
         #Normalise histograms at the end to xsec/sumw
         if self.doNorm:
             for obj in self.objs:
-                if isinstance(obj, ROOT.TH1):
+                if isinstance(obj, ROOT.TH1) and obj!=self.h_count:
                     scale = 1./self.genEventSumw
                     if self.xsec > 0:
                         scale *= self.xsec
                     obj.Scale(scale)
+            #store x-sec and sum-of-gen-weights in count histogram
+            self.h_count.SetBinContent(0,self.genEventSumw) #underflow
+            self.h_count.SetBinContent(self.h_count.GetNbinsX()+1,self.xsec) #overflow
         nbins = self.h_count.GetNbinsX()
         n_init = self.h_count.GetBinContent(1)
-        for ibin in range(1,nbins+2):
-            self.h_count.SetBinContent(ibin,self.h_count.GetBinContent(ibin)/n_init)
+        e2_init = pow(self.h_count.GetBinError(1),2)
+        for ibin in range(1,nbins+1):
+            n_ibin = self.h_count.GetBinContent(ibin)
+            self.h_eff.SetBinContent(ibin,n_ibin/n_init)
+            #binomial error
+            err = 0
+            if ibin!=1 and n_ibin!=0:
+                e2_ibin = pow(self.h_count.GetBinError(ibin),2)
+                err = math.sqrt(abs(((1.-2.*n_init/n_ibin)*e2_init+pow(n_init,2)*e2_ibin/pow(n_ibin,2))/pow(n_ibin,2)))
+            self.h_eff.SetBinError(ibin,err)
         Module.endJob(self)
 
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
@@ -181,7 +248,8 @@ class MMAnalysis(Module):
 
         # select events with at least 2 muons
         if not len(muons) >= 2: return False
-        mu1_idx=mu2_idx=-1
+        mu1_idx=-1
+        mu2_idx=-1
         i_mu1=-1
         for mu1 in muons:  # 1st loop on muons
             i_mu1+=1
@@ -218,6 +286,8 @@ class MMAnalysis(Module):
         # FSR recovery
         mu1WFsrP4 = deepcopy(mu1CorrP4)
         mu2WFsrP4 = deepcopy(mu2CorrP4)
+        isFsr1 = False
+        isFsr2 = False
         if muons[mu1_idx].fsrPhotonIdx>-1:
             fsrIdx=muons[mu1_idx].fsrPhotonIdx
             if (fsrPhotons[fsrIdx].dROverEt2<0.012 and
@@ -226,6 +296,7 @@ class MMAnalysis(Module):
                 fsrPhotonP4 = ROOT.TLorentzVector()
                 fsrPhotonP4.SetPtEtaPhiM(fsrPhotons[fsrIdx].pt,fsrPhotons[fsrIdx].eta,fsrPhotons[fsrIdx].phi,0)
                 mu1WFsrP4 += fsrPhotonP4
+                isFsr1 = True
         if muons[mu2_idx].fsrPhotonIdx>-1:
             fsrIdx=muons[mu2_idx].fsrPhotonIdx
             if (fsrPhotons[fsrIdx].dROverEt2<0.012 and
@@ -234,11 +305,11 @@ class MMAnalysis(Module):
                 fsrPhotonP4 = ROOT.TLorentzVector()
                 fsrPhotonP4.SetPtEtaPhiM(fsrPhotons[fsrIdx].pt,fsrPhotons[fsrIdx].eta,fsrPhotons[fsrIdx].phi,0)
                 mu2WFsrP4 += fsrPhotonP4
+                isFsr2 = True
 
         diMu = muons[mu1_idx].p4() + muons[mu2_idx].p4()
         diMuCorr = mu1CorrP4 + mu2CorrP4
         diMuWFsr = mu1WFsrP4 + mu2WFsrP4
-
 
         if diMuWFsr.M()<=50: return False #needed as DY MC has this cut (use scale and fsr corrected muons)
         icut += 1
@@ -295,13 +366,16 @@ class MMAnalysis(Module):
             nLeptons+=1 #MB: can break loop here and exit, but want to count additional leptons (they should be rare in general)
         self.h_nlep.Fill(nLeptons,puWeight*genWeight)
         #3. actual lepton veto
-        if nLeptons>=1: return False
+        if nLeptons>0: return False
         icut += 1
         self.h_count.AddBinContent(icut,genWeight)
 
         # jets
-        nJets=nBJetsL=nBJetsM=0
-        jet1_idx=jet2_idx=-1
+        nJets=0
+        nBJetsL=0
+        nBJetsM=0
+        jet1_idx=-1
+        jet2_idx=-1
         i_jet=-1
         for jet in jets:
             i_jet+=1
@@ -466,6 +540,83 @@ class MMAnalysis(Module):
             self.m_mm_vbf.Fill(diMuWFsr.M(),puWeight*genWeight*ptWeight*nJetWeight)
         elif diMuWFsr.Pt()>130:
             self.m_mm_bst.Fill(diMuWFsr.M(),puWeight*genWeight*ptWeight*nJetWeight)
+        # fill tree
+        if self.writeTree:
+            #set variables...
+            #m1
+            self.m1p4[0] = mu1WFsrP4.Pt()
+            self.m1p4[1] = mu1WFsrP4.Eta()
+            self.m1p4[2] = mu1WFsrP4.Phi()
+            self.m1p4[3] = mu1WFsrP4.M()
+            self.q1[0] = muons[mu1_idx].charge
+            self.iso1[0] = muons[mu1_idx].pfRelIso04_all
+            if isFsr1:
+                fsrIdx = muons[mu1_idx].fsrPhotonIdx
+                self.fsr1p[0] = fsrPhotons[fsrIdx].pt
+                self.fsr1p[1] = fsrPhotons[fsrIdx].eta
+                self.fsr1p[2] = fsrPhotons[fsrIdx].phi
+            else:
+                self.fsr1p[0] = 0
+                self.fsr1p[1] = 0
+                self.fsr1p[2] = 0
+            #m2
+            self.m2p4[0] = mu2WFsrP4.Pt()
+            self.m2p4[1] = mu2WFsrP4.Eta()
+            self.m2p4[2] = mu2WFsrP4.Phi()
+            self.m2p4[3] = mu2WFsrP4.M()
+            self.q2[0] = muons[mu2_idx].charge
+            self.iso2[0] = muons[mu2_idx].pfRelIso04_all
+            if isFsr2:
+                fsrIdx = muons[mu2_idx].fsrPhotonIdx
+                self.fsr2p[0] = fsrPhotons[fsrIdx].pt
+                self.fsr2p[1] = fsrPhotons[fsrIdx].eta
+                self.fsr2p[2] = fsrPhotons[fsrIdx].phi
+            else:
+                self.fsr2p[0] = 0
+                self.fsr2p[1] = 0
+                self.fsr2p[2] = 0
+            #j1
+            if jet1_idx > -1:
+                self.j1p4[0] = jets[jet1_idx].pt
+                self.j1p4[1] = jets[jet1_idx].eta
+                self.j1p4[2] = jets[jet1_idx].phi
+                self.j1p4[3] = jets[jet1_idx].mass
+                self.deepB1[0] = jets[jet1_idx].btagDeepB
+            else:
+                self.j1p4[0] = 0
+                self.j1p4[1] = 0
+                self.j1p4[2] = 0
+                self.j1p4[3] = 0
+                self.deepB1[0] = -1
+            #j1
+            if jet2_idx > -1:
+                self.j2p4[0] = jets[jet2_idx].pt
+                self.j2p4[1] = jets[jet2_idx].eta
+                self.j2p4[2] = jets[jet2_idx].phi
+                self.j2p4[3] = jets[jet2_idx].mass
+                self.deepB2[0] = jets[jet2_idx].btagDeepB
+            else:
+                self.j2p4[0] = 0
+                self.j2p4[1] = 0
+                self.j2p4[2] = 0
+                self.j2p4[3] = 0
+                self.deepB2[0] = -1
+            #event id
+            self.event[0] = event.event
+            self.lumi[0] = event.luminosityBlock
+            self.run[0] = event.run
+            #obj counts
+            self.npvs[0] = event.PV_npvsGood
+            self.njets[0] = nJets
+            self.nbjets[0] = nBJetsL
+            self.nbjets[1] = nBJetsM
+            #weights
+            self.weights[0] = puWeight
+            self.weights[1] = genWeight
+            self.weights[2] = ptWeight
+            self.weights[3] = nJetWeight
+            #... and fill
+            self.mmTree.Fill()
 
         #the End
         return True
