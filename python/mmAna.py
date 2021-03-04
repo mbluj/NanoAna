@@ -45,7 +45,7 @@ samples = {
 
 ###
 preselection ="" #MB: "HLT_IsoMu24" Trigger requirement moved into analyser for event counting and normalisation (anyway higly efficient on top of current preselection) Warning! preselection can affect automated normalisation!
-#preselection ="HLT_IsoMu24 && nMuon>1 && Muon_pt[0]>35 && Muon_pt[1]>20"
+#preselection ="HLT_IsoMu24 && nMuon>1 && Muon_pt[0]>26 && Muon_pt[1]>20"
 #branchsel = None #no branch selection at input/output
 branchsel = 'keep_and_drop_input_mm.txt' #file with branches selection to speedup processing
 outDir="histoFiles"

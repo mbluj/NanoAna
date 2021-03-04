@@ -29,11 +29,18 @@ class MMAnalysis(Module):
             if histFile.GetName().find('NLO')>-1:
                 self.isDY = 2
 
-        # simple output tree
+        ## Simple output tree
         if self.writeTree:
             self.mmTree = ROOT.TTree('mmTree','simple di-mu tree')
             self.addObject(self.mmTree)
             #globals to be filled into tree
+            #event id
+            self.event = numpy.zeros(1,numpy.uint64)
+            self.mmTree.Branch("event",self.event,"event/l")
+            self.lumi = numpy.zeros(1,numpy.uint32)
+            self.mmTree.Branch("lumi",self.lumi,"lumi/i")
+            self.run = numpy.zeros(1,numpy.uint32)
+            self.mmTree.Branch("run",self.run,"run/i")
             #mu1
             self.m1p4 = numpy.zeros(4,numpy.float32)
             self.mmTree.Branch("mu1p4",self.m1p4,"pt/F:eta/F:phi/F:m/F")
@@ -63,22 +70,17 @@ class MMAnalysis(Module):
             self.deepB2 = numpy.zeros(4,numpy.float32)
             self.mmTree.Branch("deepB2",self.deepB2,"deepB2/F")
             #global event vars
-            self.event = numpy.zeros(1,numpy.uint64)
-            self.mmTree.Branch("event",self.event,"event/l")
-            self.lumi = numpy.zeros(1,numpy.uint32)
-            self.mmTree.Branch("lumi",self.lumi,"lumi/i")
-            self.run = numpy.zeros(1,numpy.uint32)
-            self.mmTree.Branch("run",self.run,"run/i")
+            self.npvs = numpy.zeros(1,numpy.int32)
+            self.mmTree.Branch("npv",self.npvs,"npv/I")
             self.njets = numpy.zeros(1,numpy.int32)
             self.mmTree.Branch("njet",self.njets,"njet/I")
             self.nbjets = numpy.zeros(2,numpy.int32)
             self.mmTree.Branch("nbjet",self.nbjets,"L/I:M/I")
-            self.npvs = numpy.zeros(1,numpy.int32)
-            self.mmTree.Branch("npv",self.npvs,"npv/I")
             self.weights = numpy.zeros(4,numpy.float32)
             self.mmTree.Branch("weights",self.weights,"pu/F:gen/F:pt/F:njet/F")
 
-        # histograms
+        ## Book histograms
+        # event counter
         self.h_count = ROOT.TH1F('hcount', 'no. of events', 10, 0, 10)
         cut_names = ['init', 'mu-trig', 'met-flags', 'good-PV', 'di-mu', 'trig-match', 'lept-veto', 'b-veto']
         ibin = 1
@@ -91,6 +93,7 @@ class MMAnalysis(Module):
         self.h_eff.SetTitle('efficiency')
         self.addObject(self.h_eff)
 
+        # variables of interest
         self.h_npv = ROOT.TH1F('npv', ';no. of vertices; Events', 80, 0, 80)
         self.addObject(self.h_npv)
         self.h_npv_raw = ROOT.TH1F('npv_raw', ';no. of vertices w/o pileup weight; Events', 80, 0, 80)
@@ -179,6 +182,7 @@ class MMAnalysis(Module):
             #store x-sec and sum-of-gen-weights in count histogram
             self.h_count.SetBinContent(0,self.genEventSumw) #underflow
             self.h_count.SetBinContent(self.h_count.GetNbinsX()+1,self.xsec) #overflow
+        # event count -> efficiency
         nbins = self.h_count.GetNbinsX()
         n_init = self.h_count.GetBinContent(1)
         e2_init = pow(self.h_count.GetBinError(1),2)
@@ -200,6 +204,7 @@ class MMAnalysis(Module):
         self.hasPUWeight = bool(inputTree.GetBranch("puWeight"))
 
         runTree = inputFile.Get("Runs")
+        self.doNorm = False
         self.doNorm = bool(runTree.GetBranch("genEventSumw")) and bool(inputTree.GetBranch("genWeight"))
         if self.doNorm:
             for entry in range(runTree.GetEntries()):
@@ -231,7 +236,7 @@ class MMAnalysis(Module):
         icut += 1
         self.h_count.AddBinContent(icut,genWeight)
         
-        # MET flags, needed???
+        # MET flags to remove rare events with spurious MET caused by detector issues
         if not (event.Flag_goodVertices and
                 event.Flag_globalSuperTightHalo2016Filter and
                 event.Flag_HBHENoiseFilter and event.Flag_HBHENoiseIsoFilter and
@@ -398,7 +403,7 @@ class MMAnalysis(Module):
             #b-jets
             if not abs(jet.eta)<2.5: continue
             if jet.btagDeepB>0.1241: nBJetsL+=1
-            if jet.btagDeepB>0.4184: nBJetsM+=1                    
+            if jet.btagDeepB>0.4184: nBJetsM+=1
 
         # di-jet (VBF) variables
         deta_jj = 0
@@ -504,7 +509,7 @@ class MMAnalysis(Module):
         else:
             self.h_ptp.Fill(muons[mu1_idx].pt,puWeight*genWeight*ptWeight*nJetWeight)
             self.h_ptn.Fill(muons[mu2_idx].pt,puWeight*genWeight*ptWeight*nJetWeight)
-            
+
         #di-mu variables
         self.h_pt_mm.Fill(diMu.Pt(),puWeight*genWeight*ptWeight*nJetWeight)
         self.h_m_mm.Fill(diMu.M(),puWeight*genWeight*ptWeight*nJetWeight)
@@ -543,6 +548,10 @@ class MMAnalysis(Module):
         # fill tree
         if self.writeTree:
             #set variables...
+            #event id
+            self.event[0] = event.event
+            self.lumi[0] = event.luminosityBlock
+            self.run[0] = event.run
             #m1
             self.m1p4[0] = mu1WFsrP4.Pt()
             self.m1p4[1] = mu1WFsrP4.Eta()
@@ -601,10 +610,6 @@ class MMAnalysis(Module):
                 self.j2p4[2] = 0
                 self.j2p4[3] = 0
                 self.deepB2[0] = -1
-            #event id
-            self.event[0] = event.event
-            self.lumi[0] = event.luminosityBlock
-            self.run[0] = event.run
             #obj counts
             self.npvs[0] = event.PV_npvsGood
             self.njets[0] = nJets
