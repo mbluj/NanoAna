@@ -49,7 +49,7 @@ class MMAnalysis(Module):
             self.q2 = numpy.zeros(1,numpy.int32)
             self.mmTree.Branch("q2",self.q2,"q2/I")
             self.iso2 = numpy.zeros(1,numpy.float32)
-            self.mmTree.Branch("iso2",self.iso1,"iso1/F")
+            self.mmTree.Branch("iso2",self.iso2,"iso2/F")
             #global event vars
             self.npvs = numpy.zeros(1,numpy.int32)
             self.mmTree.Branch("npv",self.npvs,"npv/I")
