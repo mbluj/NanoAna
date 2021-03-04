@@ -48,6 +48,7 @@ preselection ="" #MB: "HLT_IsoMu24" Trigger requirement moved into analyser for 
 #branchsel = None #no branch selection at input/output
 branchsel = 'keep_and_drop_input_mm.txt' #file with branches selection to speedup processing
 outDir="histoFiles"
+storeSimpleTree=False
 
 ### Process samples
 for dataset in [
@@ -84,7 +85,7 @@ for dataset in [
     p = PostProcessor(
         outDir, files, cut=preselection, branchsel=branchsel, 
         modules=[
-            MMAnalysis(xsec=samples[dataset][1]) #mm-analysis module
+            MMAnalysis(xsec=samples[dataset][1],writeTree=storeSimpleTree) #mm-analysis module
             ], 
         noOut=True, 
         histFileName=histFileName, histDirName="mmPlots")
