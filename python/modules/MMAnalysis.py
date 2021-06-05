@@ -166,15 +166,15 @@ class MMAnalysis(Module):
                 and mu1.pfRelIso04_all<0.25): return False
         # 2nd muon:
         mu2 = muons[1]
-        if not (mu2.pt>20 #assume that this one triggers
+        if not (mu2.pt>20
                 and abs(mu2.eta)<2.4
                 and mu2.mediumId
                 and mu2.pfRelIso04_all<0.25): return False
-        # require opposite electroc charge
+        # require opposite electric charge
         if (mu2.charge*mu1.charge)>0: return False
         diMu = mu1.p4() + mu2.p4()
 
-        # consider to apply a minimal pt(mm) cut
+        # consider to apply a minimal m(mm) cut
 
         icut += 1
         self.h_count.AddBinContent(icut,genWeight)
