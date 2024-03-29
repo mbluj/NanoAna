@@ -81,7 +81,7 @@ for dataset in [
     ##'Run2018C',
     ##'Run2018D',
     ]:
-    print 'Processing', dataset
+    print('Processing', dataset)
     files = glob.glob(samples[dataset][0])
     histFileName = outDir+'/histOut_'+dataset+'.root'
     p = PostProcessor(

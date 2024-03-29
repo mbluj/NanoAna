@@ -200,7 +200,7 @@ class MMAnalysis(Module):
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.hasMuCorr = bool(inputTree.GetBranch("Muon_corrected_pt"))
         if not self.hasMuCorr:
-            print "[MMAnalysis]: Input tree does not contain muon-pt corrections"
+            print("[MMAnalysis]: Input tree does not contain muon-pt corrections")
         self.hasPUWeight = bool(inputTree.GetBranch("puWeight"))
 
         runTree = inputFile.Get("Runs")

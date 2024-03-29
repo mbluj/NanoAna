@@ -27,7 +27,7 @@ def configureLegend(leg, ncolumn):
 histoDir = 'histoFiles/'
 outDir = 'plots/'
 lumi=14.03+7.06+6.89+31.83
-print 'lumi(2018A+B+C+D) =',lumi,'fb-1'
+print('lumi(2018A+B+C+D) =',lumi,'fb-1')
 hscaling=100.
 samples = {
     'DYToLL': ['Z/#gamma*#rightarrow#mu#mu'],
@@ -91,12 +91,12 @@ for sample in ['tt2l2nu','DYToLL','ggH125','vbfH125','ewk2l2j',
                'ttsemil','atop_tch','top_tch','tWatop_ext1','tWtop_ext1','t_sch',
                'ww2l2nu','wz3l1nu_ext1','wz2l2q','zz2l2nu_ext1','zz2l2q','zz4l_ext1',
                'Run2018All']:
-    #print sample, samples[sample][0], samples[sample][1], samples[sample][2]
+    #print(sample, samples[sample][0], samples[sample][1], samples[sample][2])
     f_in=ROOT.TFile.Open(histoDir+'histOut_'+sample+'.root')
     scale = 1.
     if samples[sample][0].find('Data')==-1 and sample.find('Run')==-1:
         scale = lumi*1000.
-    #print sample, scale
+    #print(sample, scale)
     for h_name in h_names:
         h = f_in.Get('mmPlots/'+h_name).Clone(h_name+'_'+sample)
         h.Scale(scale)
