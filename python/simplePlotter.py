@@ -5,7 +5,7 @@ import ROOT
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 from ROOT import gROOT, gStyle
 from ROOT import TH1F, TFile, TCanvas, TPad, TLegend, \
-    TGraphAsymmErrors, Double, TLatex, TMath
+    TGraphAsymmErrors, TLatex, TMath
 
 from officialStyle import officialStyle
 import CMS_lumi
